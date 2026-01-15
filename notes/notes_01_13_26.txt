@@ -1,4 +1,4 @@
-1/13/16
+1/13/26
 Agent sends an action to an environment, environment sends reward and state back to agent, repeat.
     i.e dog does trick, dog gets treat, dog now knows to do trick
 The "Reward Hypothesis": All intelligence is fundamentally goal based and all goales can be frames as maximizing expected cumulative reward
@@ -33,4 +33,3 @@ Expectations Mini-Projects
 - Isolated Practice: Dont break your main repo
 - Philosophical Probing: Ask "why"
 - NOT Teamwork
-

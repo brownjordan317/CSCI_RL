@@ -1,0 +1,75 @@
+1/15/26
+- a sigma algebra would be a subset of omega
+- A random variable is a measurable function of the form S: Omega -> Y
+- prob measure space would be function apporximation
+- Expections are given from integration
+- Omega is the number of states times the number of actions
+- When time is added then we would want the multiplier of omega to be larger (ie pu to a power)
+- State (S) it the random variable for the complete description of the world
+- Observation (O) The random variable for what the agent sees. A partial view
+- In poker, the deck would be the state and the observation would be just your hand
+
+ Stochastic kernels
+- fix issues cause by conditional probabilities
+- History to now times all of the possible futures, returns probabilities
+- defined as k: S x Sigma -> [0, 1]
+
+The Markov Property
+- We only have to consider one kernel for each timestep (t)
+- "The future only depends on the present"
+- Makes the math trackable
+- Its an opproximation
+- When its just states you can use markov but obervations make it so that you cannot easily use it
+
+Markov Process
+- Need a measurable space
+- Need to define an initial distribution
+- define a Stochastic kernel
+- The Ionescu-Tulcea theorum gives you a probability space of trajectories
+
+- Stochastic processes are often represented as either sets or matrices
+
+Perron-Frobenius Theorum (PF)
+- Every matrix with stricly positve entries has a unique largest positive eigenvalue
+- Every non-negateive matrix that can be viewed as the adjacency matrix of a strongly connnected graph has a unique largets positve eigenvalue of 1
+
+Banach Fixed Point Theorum (BFP)
+- Even if you cant, you still get the convergence you need. via the Banach fixed point theorem; although, you cannot then construct the point immediately
+
+implementation tips
+- Dictionaries: great for initialization
+- sparse matrices: Great for cpu
+- pytorch tensors: Great for gpu
+- symmetry exploitation
+
+Rewarding good behavior
+- reward function R: S -> Real numbers
+- gamma is a fixed number [0, 1]
+- (S, P, R, gamma) is called a Markov reward processes
+
+Reward Shaping
+- Without actions, accruing rewards is random
+-Tips:
+    1. Use small regative rewards everywhere to later encourage an impatience to explore
+    2. Use small positive rewards everywhere to later encouage caution and vigilance
+    3. Use relatively large positive rewards only for the goal/terminal state, unless you have a very specific reason not to.
+    4. Use relatively large negateive rewards for locally bad states, like dangerous situations
+    5. Infinites and negative Infinites are sometimes useful for visualizing obstacles, but they must always be self contained.
+
+Rewards ar a high level
+- Rewards act like a signal. Agents act like junkies looking for there next fix and smartly placing rewards leads to defined Learning
+
+returns
+- the gamma value is what prevents reward returns from being Infinites
+- gamma is oftern refered to as discounting or impatience
+
+why gamma (discounting)
+- converges mathematically
+- only fails with unbounded rewards
+- Allows to edit uncertainty about the future
+- closer to 1 means more forward thinkin
+- closer to 0 means more current thinking
+
+The value function
+- "How good is it to be in state s"
+- assigns values to states in the form of expected rewards
