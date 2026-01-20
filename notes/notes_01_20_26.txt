@@ -1,0 +1,27 @@
+1/20/26
+- RL is written in the language of measure theory
+- Every formula you will ever see in RL will be misleading without the right exposure
+
+For homework
+- Answer can be in any format
+- The actual formatting of the solution does not need to be clean
+- The important thing is for a process of thinking and reasoning is shown
+
+Actions
+- The agent makes a move and then the agent responds
+- Needed for introduction
+    - Action space 
+    - random variables for actions
+- Actions can be almost anything (independent of state)
+- Action space needs a dynamics function
+
+Policy
+- A conditional probability of picking actions given your state
+- returns measurable sets
+- The notion of learning a new policy and/or action, is equivalent to changing your transition matrix
+    - leads to changes in the reward process
+        - leads to changed values of the state
+- Essentially the way in which we will have our agents action
+- Normally optimized using values
+
+
