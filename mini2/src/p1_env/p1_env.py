@@ -1,9 +1,6 @@
 import numpy as np
 from grid_world import windy_gridworld
 from value_convergence import value_iteration
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import time
 
 class WindyGridChasm:
     def __init__(self):
@@ -47,6 +44,6 @@ V, policy = chasm.compute_optimal_policy()
 
 # full optimal policy
 print(f"Optimal policy:\n{policy}")
-
+print(len(policy))
 
 

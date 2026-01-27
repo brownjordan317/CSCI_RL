@@ -1,49 +1,102 @@
-
-
-def value_iteration(S, A, P, r, terminal_states, gamma=0.99, tol=1e-4, max_iter=1000):
+def value_iteration(S, A, P, r, terminal_states,
+                            gamma=0.99, tol=1e-4, max_iter=1000):
     """
-    Perform Value Iteration on a stochastic MDP.
+    Value iteration algorithm to compute the value function and
+    policy for a given finite Markov Decision Process (MDP).
 
-    Args:
-        S: set of states
-        A: set of actions
-        P: dict of dict of dict, P[s][a][s_next] = probability
-        r: dict of rewards, r[(s, a, s_next)]
-        terminal_states: set of terminal states
-        gamma: discount factor
-        tol: convergence tolerance
-        max_iter: maximum iterations
+    Parameters
+    ----------
+    S : set
+        Set of states
+    A : set
+        Set of actions
+    P : dict
+        Transition probability matrix
+    r : dict
+        Reward function
+    terminal_states : set
+        Set of terminal states
+    gamma : float, optional
+        Discount factor in [0,1]. Defaults to 0.99.
+    tol : float, optional
+        Tolerance for convergence. Defaults to 1e-4.
+    max_iter : int, optional
+        Maximum number of iterations. Defaults to 1000.
 
-    Returns:
-        V: dict of state values
-        policy: dict of optimal action per state
+    Returns
+    -------
+    V : dict
+        Value function
+    policy : dict
+        Greedy policy
     """
-    V = {s: 0.0 for s in S}  # initialize values
-    policy = {s: None for s in S}
 
-    for it in range(max_iter):
-        delta = 0
-        V_new = V.copy()
-        for s in S:
+    # Include both normal and terminal states
+    all_states = S.union(terminal_states)
+
+    V = {s: 0.0 for s in all_states}
+
+    # Main value iteration loop
+    for _ in range(max_iter):
+        delta = 0.0
+        V_new = {}
+
+        # Perform a Bellman optimality update for each state
+        for s in all_states:
+
+            # Terminal states are absorbing with zero value
             if s in terminal_states:
                 V_new[s] = 0.0
                 continue
 
-            q_values = []
-            for a in A:
-                q = 0
-                for s_next, prob in P[s][a].items():
-                    reward = r.get((s, a, s_next), 0.0)
-                    q += prob * (reward + gamma * V[s_next] if s_next not in terminal_states else reward)
-                q_values.append((q, a))
-            
-            best_q, best_a = max(q_values, key=lambda x: x[0])
-            V_new[s] = best_q
-            policy[s] = best_a
+            # -------- Bellman optimality backup --------
+            # For the current state s:
+            #   1. Compute the expected return for each action a
+            #   2. Select the action that maximizes this expected return
+            #
+            # This implements:
+            #   V_{k+1}(s) = max_a E[ R(s,a,s') + γ V_k(s') ]
+            V_new[s] = max(
+                sum(
+                    prob * (
+                        r.get((s, a, s_next), 0.0)
+                        + gamma * V[s_next]  # discounted value of next state
+                    )
+                    for s_next, prob in P[s][a].items()
+                )
+                for a in A
+            )
+            # -------------------------------------------
+
+            # Track the maximum change in value for convergence checking
             delta = max(delta, abs(V_new[s] - V[s]))
 
+        # Update the value function
         V = V_new
+
+        # Stop if the Bellman updates have converged
         if delta < tol:
             break
+
+    # -------- Policy extraction (greedy w.r.t. V*) --------
+    # After convergence, derive the optimal policy by choosing,
+    # for each state, the action that maximizes the Bellman expectation
+    policy = {}
+    for s in S:
+        if s in terminal_states:
+            policy[s] = None
+            continue
+
+        policy[s] = max(
+            A,
+            key=lambda a: sum(
+                prob * (
+                    r.get((s, a, s_next), 0.0)
+                    + gamma * V[s_next]
+                )
+                for s_next, prob in P[s][a].items()
+            )
+        )
+    # ------------------------------------------------------
 
     return V, policy
