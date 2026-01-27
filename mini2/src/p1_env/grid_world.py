@@ -1,6 +1,6 @@
 import numpy as np
 
-def windy_gridworld(mask, step_cost=-1.0, p_center=0.8):
+def windy_gridworld(mask, terminal_value, p_center=0.8):
     """
     Creates a Markov decision process (MDP) from a grid world with windy transitions.
 
@@ -9,8 +9,8 @@ def windy_gridworld(mask, step_cost=-1.0, p_center=0.8):
     mask : numpy array
         A 2D array where each cell represents a state in the grid world.
         A value of -np.inf represents a wall, and a value greater than 0 represents a reward.
-    step_cost : float, optional
-        The cost of taking each step in the grid world. Defaults to -1.0.
+    terminal_value: int
+        A value that signals the terminal state
     p_center : float, optional
         The probability of being pushed towards the center column when on the second column from the left or right. Defaults to 0.8.
 
@@ -51,7 +51,7 @@ def windy_gridworld(mask, step_cost=-1.0, p_center=0.8):
     }
 
     terminal_states = {
-        (i, j) for (i, j) in S if mask[i, j] > 0
+        (i, j) for (i, j) in S if mask[i, j] == terminal_value
     }
 
     P = {}
@@ -61,6 +61,7 @@ def windy_gridworld(mask, step_cost=-1.0, p_center=0.8):
         P[s] = {}
         for a in A:
             # Terminal states are absorbing
+            # Terminal reward is always 0
             if s in terminal_states:
                 P[s][a] = {s: 1.0}
                 r[(s, a)] = 0.0
@@ -71,9 +72,8 @@ def windy_gridworld(mask, step_cost=-1.0, p_center=0.8):
             P[s][a] = {}
             for s_next, prob in transitions.items():
                 P[s][a][s_next] = prob
-                # Reward: step cost + mask reward if it's a grid cell
                 if isinstance(s_next, tuple):
-                    r[(s, a, s_next)] = step_cost + mask[s_next]
+                    r[(s, a, s_next)] = mask[s_next]
                 else:
                     # Crash or exit
                     r[(s, a, s_next)] = 0.0

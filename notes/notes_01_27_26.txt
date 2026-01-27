@@ -1,0 +1,11 @@
+Class began with exersice on calculating expectation
+
+The expected return for each action is the expected reward throughout the remaining trajectory
+
+MC Methods and TD
+- Begin with some policy
+- Gain experience through samples trajectory
+- use this experience to inform your values
+- use values to inform your policy
+- You usually use and alpha instead of 1/k for robustness to unreliable data
+
