@@ -2,77 +2,131 @@ import numpy as np
 
 
 def import_random_transitions(transitions_type):
+    """
+    Imports a random transition model based on the given type.
+
+    Parameters:
+    transitions_type (str): Type of transitions to import (e.g. "m2p1" for
+        windy grid world transitions).
+
+    Returns:
+    random_transitions (function): Imported random transition model.
+
+    Raises:
+    ValueError: If the given transitions type is unknown.
+    """
     if transitions_type == "m2p1":
         from src.p1.helpers import wind_transitions as random_transitions
+    else:
+        raise ValueError(f"Unknown transitions type: {transitions_type}")
 
     return random_transitions
 
-def gridworld(mask, terminal_values, value_map=None, transitions_type="m2p1", random_probability=0.8):
-    """
-    Creates an MDP where terminal states are defined by values in the mask.
-    """
-    if value_map is None:
-        # Default mapping based on your current generate_grid values
-        value_map = {-20: 'crash', 100: 'exit'}
 
+import numpy as np
+
+def gridworld(mask, terminal_map, action_map, step_penalty=-1, 
+              transitions_type="m2p1", random_probability=0.8):
+    """
+    Constructs a GridWorld MDP model from a given mask, terminal map, 
+    action map, step penalty, transitions type, and random probability.
+
+    Parameters:
+    mask (numpy array): Grid world mask, where -1 represents walls and 
+        positive values represent terminal states.
+    terminal_map (dict): Dictionary mapping terminal states to their 
+        corresponding rewards.
+    action_map (dict): Dictionary mapping actions to their corresponding
+        movements (e.g. {"U": (-1, 0)}).
+    step_penalty (float): Reward penalty for moving from one state to another.
+    transitions_type (str): Type of transitions to use (e.g. "m2p1" for windy 
+        grid world transitions).
+    random_probability (float): Probability of a random transition occurring.
+
+    Returns:
+    S (set): Set of all non-terminal states in the grid world.
+    A (set): Set of all actions in the grid world.
+    P (dict): Transition model, mapping each state-action pair to a 
+        probability distribution over next states.
+    r (dict): Reward model, mapping each state-action-next state pair to its 
+        corresponding reward.
+    terminal_states (set): Set of all terminal states in the grid world.
+    """
     random_transitions = import_random_transitions(transitions_type)
 
     rows, cols = mask.shape
-    fail_value, terminal_value = terminal_values
-    center_col = 3 # Can also be made dynamic (cols // 2)
+    center_col = cols // 2
 
-    # State space: Any cell that is NOT -inf and NOT a terminal value in the map
-    # This ensures terminal states don't have their own 'next moves' calculated here
-    terminal_vals_set = set(value_map.keys())
+
+    # Terminal bookkeeping
+    terminal_states = set(terminal_map.keys())
+    terminal_reward_values = set(terminal_map.values())
+
+    # State space (grid states only)
     S = {
         (i, j)
         for i in range(rows)
         for j in range(cols)
-        if not np.isneginf(mask[i, j]) and mask[i, j] not in terminal_vals_set
+        if not np.isneginf(mask[i, j]) and mask[i, j] not in terminal_reward_values
     }
 
-    A = {"forward", "left", "right"}
-    moves = {"forward": (1, 0), "left": (0, -1), "right": (0, 1)}
+    # Action space
+    A = set(action_map.keys())
 
-    # Extract the symbolic names from your value_map (e.g., {'crash', 'exit'})
-    terminal_states = set(value_map.values())
+    moves = action_map
 
+    # Transition + reward models
     P = {}
     r = {}
 
+    # Transitions for grid states
     for s in S:
         P[s] = {}
+
         for a in A:
-            # 1. Get raw transitions from the helper (e.g., wind_transitions)
-            raw_transitions = random_transitions(*s, a, moves, random_probability, rows, cols, center_col)
+            raw_transitions = random_transitions(
+                *s,
+                a,
+                moves,
+                random_probability,
+                rows,
+                cols,
+                center_col
+            )
+
             P[s][a] = {}
-            
+
             for s_next, prob in raw_transitions.items():
-                # 2. Resolve the "Actual" next state based on the mask
                 actual_next = s_next
-                
+
+                # Check if landing on terminal cell
                 if isinstance(s_next, tuple):
-                    # Check if the coordinate landed on a special value in the mask
                     cell_val = mask[s_next]
-                    if cell_val in value_map:
-                        actual_next = value_map[cell_val]
 
-                # 3. Accumulate probabilities and assign rewards
-                P[s][a][actual_next] = P[s][a].get(actual_next, 0) + prob
-                
-                if actual_next == 'crash':
-                    r[(s, a, actual_next)] = fail_value
-                elif actual_next == 'exit':
-                    r[(s, a, actual_next)] = terminal_value
+                    if cell_val in terminal_reward_values:
+                        # Find ALL terminals with this reward
+                        matching_terminals = [
+                            t for t, v in terminal_map.items()
+                            if v == cell_val
+                        ]
+
+                        # Deterministic selection (safe)
+                        actual_next = matching_terminals[0]
+
+                # Accumulate probability mass
+                P[s][a][actual_next] = P[s][a].get(actual_next, 0.0) + prob
+
+                # Reward assignment
+                if actual_next in terminal_states:
+                    r[(s, a, actual_next)] = terminal_map[actual_next]
                 else:
-                    r[(s, a, actual_next)] = -1 # Standard step cost
+                    r[(s, a, actual_next)] = step_penalty
 
-    # Add absorbing transitions for all unique terminal symbols found in value_map
+    # Absorbing terminal states
     for term in terminal_states:
-        P[term] = {a: {term: 1.0} for a in A}
+        P[term] = {}
         for a in A:
+            P[term][a] = {term: 1.0}
             r[(term, a, term)] = 0.0
 
     return S, A, P, r, terminal_states
-
-

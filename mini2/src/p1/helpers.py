@@ -1,19 +1,60 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def generate_grid(grid_size=[20, 7], reward_range=[-1, -1]):
-        random_array = np.random.randint(
-            reward_range[0],
-            reward_range[1] + 1,
-            [grid_size[0], grid_size[1]]
-        )
-        random_array[:, 0] = -20
-        random_array[:, -1] = -20
-        random_array[-1, :] = 100
-        return random_array
+def generate_grid(
+        grid_size=[20, 7], 
+        reward_range=[-1, -1],
+        terminal_state_values=[-20, 100]
+        ):
+    """
+    Generates a grid of the given size with random rewards between the given reward range.
+    The first and last columns of the grid are set to the first element of terminal_state_values.
+    The last row of the grid is set to the second element of terminal_state_values.
+
+    Parameters
+    ----------
+    grid_size (list): The size of the grid to generate.
+    reward_range (list): The range of rewards to use for the grid.
+    terminal_state_values (list): The values to use for the terminal states.
+
+    Returns
+    -------
+    numpy array: The generated grid.
+    """
+    random_array = np.random.randint(
+        reward_range[0],
+        reward_range[1] + 1,
+        [grid_size[0], grid_size[1]]
+    )
+    # Set the first and last columns to the first terminal state value
+    random_array[:, 0] = terminal_state_values[0]
+    random_array[:, -1] = terminal_state_values[0]
+    # Set the last row to the second terminal state value
+    random_array[-1, :] = terminal_state_values[1]
+    return random_array
 
 
 def visualize_policy(grid_size, policy_dict, mask=None):
+    """
+    Visualize the policy from a given policy dictionary on a grid of size grid_size.
+    The policy is represented as arrows (←, →, ↓) on the grid.
+    If a mask is provided, it is used to fill in the "Empty" Terminal Cells.
+
+    Parameters
+    ----------
+    grid_size : tuple of two integers
+        The size of the grid to visualize the policy on.
+    policy_dict : dict
+        A dictionary where the keys are tuples representing the position on the grid
+        and the values are the actions to take at that position.
+    mask : numpy array, optional
+        A numpy array where the values are used to fill in the "Empty" Terminal Cells.
+        The values should be either -20 (for crash_val) or 100 (for exit_val).
+
+    Returns
+    -------
+    None
+    """
     ROWS, COLS = grid_size
     
     arrow_map = {

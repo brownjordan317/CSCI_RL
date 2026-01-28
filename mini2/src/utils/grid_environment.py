@@ -8,7 +8,8 @@ class GridEnvironment:
     def __init__(self, 
                  curr_grid, 
                  reward_range, 
-                 terminal_state_values,
+                 terminal_map,
+                 action_map,
                  gamma, 
                  step_penalty,
                  random_transition_type,
@@ -18,7 +19,9 @@ class GridEnvironment:
         
         self.curr_grid = curr_grid
         self.grid_size = self.curr_grid.shape
-        self.terminal_state_values = terminal_state_values
+        self.terminal_map = terminal_map
+        self.terminal_state_values = list(terminal_map.values())
+        self.action_map = action_map
         self.reward_range = reward_range
         self.gamma = gamma
         self.step_penalty = step_penalty
@@ -33,7 +36,8 @@ class GridEnvironment:
         self.S, self.A, self.P, self.r, self.terminal_states = \
             gridworld(
                 self.curr_grid, 
-                self.terminal_state_values, 
+                terminal_map=self.terminal_map,
+                action_map=self.action_map,
                 transitions_type=self.random_transition_type,
                 random_probability=self.random_probability
         )
@@ -49,13 +53,32 @@ class GridEnvironment:
             print(f"Transitions from (0,3) with 'right': {self.P[(0,3)]['right']}")
 
     def reset(self):
-        """Resets the agent to the initial location."""
+        """
+        Resets the agent to the initial location.
+
+        Returns
+        -------
+        state : tuple
+            The initial state.
+        """
         self.current_state = self.start_state
         return self.current_state
 
     def step(self, s, a):
         """
         Returns transitions with (probability, reward) tuples.
+
+        Parameters
+        ----------
+        s : tuple
+            The current state.
+        a : str
+            The action taken.
+
+        Returns
+        -------
+        transitions : dict
+            A dictionary with the next states as keys and tuples of (probability, reward) as values.
         """
         transitions = {}
         for s_next, prob in self.P[s][a].items():
@@ -63,35 +86,3 @@ class GridEnvironment:
             reward = self.r.get((s, a, s_next), 0.0)
             transitions[s_next] = (prob, reward)
         return transitions
-
-
-if __name__ == "__main__":
-    chasm = GridEnvironment()
-
-    # Change this line
-    V, policy = policy_iteration(
-        chasm.S,
-        chasm.A,
-        chasm,
-        chasm.terminal_states,
-        chasm.terminal_state_values,
-        gamma=chasm.gamma
-    )
-
-    print("\nOptimal policy sample:")
-    for i in range(5):
-        for j in range(7):
-            if (i, j) in policy:
-                print(f"({i},{j}): {policy[(i,j)]}", end="  ")
-        print()
-    
-    print(f"\nTotal states in policy: {len(policy)}")
-    
-    # Count actions
-    action_counts = {}
-    for s, a in policy.items():
-        if isinstance(s, tuple):
-            action_counts[a] = action_counts.get(a, 0) + 1
-    print(f"Action distribution: {action_counts}")
-    
-    chasm.visualize_policy(policy)
