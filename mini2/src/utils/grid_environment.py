@@ -7,7 +7,6 @@ import numpy as np
 class GridEnvironment:
     def __init__(self, 
                  curr_grid, 
-                 reward_range, 
                  terminal_map,
                  action_map,
                  gamma, 
@@ -22,7 +21,6 @@ class GridEnvironment:
         self.terminal_map = terminal_map
         self.terminal_state_values = list(terminal_map.values())
         self.action_map = action_map
-        self.reward_range = reward_range
         self.gamma = gamma
         self.step_penalty = step_penalty
         self.random_transition_type = random_transition_type
@@ -45,12 +43,7 @@ class GridEnvironment:
         print(f"S size: {len(self.S)}")
         print(f"A: {self.A}")
         print(f"terminal_states: {self.terminal_states}")
-        
-        # Debug: check some transitions
-        if (0, 3) in self.P:
-            print(f"\nTransitions from (0,3) with 'forward': {self.P[(0,3)]['forward']}")
-            print(f"Transitions from (0,3) with 'left': {self.P[(0,3)]['left']}")
-            print(f"Transitions from (0,3) with 'right': {self.P[(0,3)]['right']}")
+    
 
     def reset(self):
         """

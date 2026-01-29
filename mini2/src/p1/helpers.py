@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 def generate_grid(
         grid_size=[20, 7], 
@@ -26,43 +27,54 @@ def generate_grid(
         reward_range[1] + 1,
         [grid_size[0], grid_size[1]]
     )
+    # Set the last row to the second terminal state value
+    random_array[-1, :] = terminal_state_values[1]
     # Set the first and last columns to the first terminal state value
     random_array[:, 0] = terminal_state_values[0]
     random_array[:, -1] = terminal_state_values[0]
-    # Set the last row to the second terminal state value
-    random_array[-1, :] = terminal_state_values[1]
+    
     return random_array
+
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def visualize_policy(grid_size, policy_dict, mask=None):
     """
     Visualize the policy from a given policy dictionary on a grid of size grid_size.
-    The policy is represented as arrows (←, →, ↓) on the grid.
-    If a mask is provided, it is used to fill in the "Empty" Terminal Cells.
-
-    Parameters
-    ----------
-    grid_size : tuple of two integers
-        The size of the grid to visualize the policy on.
-    policy_dict : dict
-        A dictionary where the keys are tuples representing the position on the grid
-        and the values are the actions to take at that position.
-    mask : numpy array, optional
-        A numpy array where the values are used to fill in the "Empty" Terminal Cells.
-        The values should be either -20 (for crash_val) or 100 (for exit_val).
-
-    Returns
-    -------
-    None
+    The policy is represented as arrows with RGB colors.
     """
+
     ROWS, COLS = grid_size
-    
-    arrow_map = {
-        'left': '←',
-        'right': '→',
-        'forward': '↓',
-        None: '·'
-    }
+
+    # -----------------------------
+    # Dynamically build arrow map
+    # -----------------------------
+    arrow_map = {}
+    color_map = {}
+
+    max_number = max(int(val.split("_")[1]) for val in policy_dict.values() if val)
+
+    for val in policy_dict.values():
+        if not val:
+            continue
+
+        number = int(val.split("_")[1])
+        color_ratio = number / max_number
+
+        if "left" in val:
+            arrow_map[val] = "←"
+            color_map[val] = (color_ratio, 0.0, 0.0)   # red
+        elif "right" in val:
+            arrow_map[val] = "→"
+            color_map[val] = (0.0, color_ratio, 0.0)   # green
+        elif "forward" in val:
+            arrow_map[val] = "↓"
+            color_map[val] = (0.0, 0.0, color_ratio)   # blue
+        else:
+            arrow_map[val] = "·"
+            color_map[val] = (0.0, 0.0, 0.0)
 
     fig, ax = plt.subplots(figsize=(8, 12))
     ax.set_xlim(-0.5, COLS - 0.5)
@@ -71,33 +83,68 @@ def visualize_policy(grid_size, policy_dict, mask=None):
     ax.set_yticks(range(ROWS))
     ax.grid(True, linestyle='--', alpha=0.5)
 
-    # 1. NEW: Logic to fill in the "Empty" Terminal Cells
+    # -----------------------------
+    # Draw terminal cells
+    # -----------------------------
     if mask is not None:
         for r in range(ROWS):
             for c in range(COLS):
                 val = mask[r, c]
-                if val == -20: # Match your crash_val
-                    ax.add_patch(plt.Rectangle((c-0.5, r-0.5), 1, 1, color='red', alpha=0.1))
-                    ax.text(c, r, 'X', ha='center', va='center', color='red', alpha=0.6)
-                elif val == 100: # Match your exit_val
-                    ax.add_patch(plt.Rectangle((c-0.5, r-0.5), 1, 1, color='green', alpha=0.1))
-                    ax.text(c, r, '★', ha='center', va='center', color='green')
 
-    # 2. Existing Policy Drawing
+                if val == -20:
+                    ax.add_patch(
+                        plt.Rectangle((c - 0.5, r - 0.5), 1, 1,
+                                      color=(1.0, 0.0, 0.0), alpha=0.15)
+                    )
+                    ax.text(c, r, 'X',
+                            ha='center', va='center',
+                            fontsize=16,
+                            color=(0.8, 0.0, 0.0),
+                            fontweight='bold')
+
+                elif val == 100:
+                    ax.add_patch(
+                        plt.Rectangle((c - 0.5, r - 0.5), 1, 1,
+                                      color=(0.0, 0.8, 0.0), alpha=0.15)
+                    )
+                    ax.text(c, r, '★',
+                            ha='center', va='center',
+                            fontsize=18,
+                            color=(0.0, 0.6, 0.0),
+                            fontweight='bold')
+
+    # -----------------------------
+    # Draw policy arrows
+    # -----------------------------
     for key, move in policy_dict.items():
-        if isinstance(key, tuple):
-            r, c = key
-            symbol = arrow_map.get(move, '·')
-            
-            color = 'blue' if move == 'forward' else \
-                    'red' if move == 'left' else \
-                    'green' if move == 'right' else 'black'
-            
-            ax.text(c, r, symbol, ha='center', va='center', 
-                    fontsize=16, fontweight='bold', color=color)
+        if not isinstance(key, tuple) or not move:
+            continue
 
-    plt.title("Dynamic Grid Policy (Arrows=Decisions, X=Crash, ★=Exit)")
+        r, c = key
+
+        symbol = arrow_map.get(move, '·')
+        color = color_map.get(move, (0.0, 0.0, 0.0))
+
+        ax.text(
+            c, r,
+            symbol,
+            ha='center',
+            va='center',
+            fontsize=18,
+            fontweight='bold',
+            color=color,
+            bbox=dict(facecolor=(1, 1, 1), edgecolor='none', alpha=0.6)
+        )
+
+    ax.set_title(
+        "Dynamic Grid Policy\n"
+        "RGB-colored arrows | X = Crash | ★ = Exit",
+        fontsize=12
+    )
+
+    plt.tight_layout()
     plt.show()
+
 
 def wind_transitions(i, j, a, moves, p_center, rows, cols, center_col):
     """
@@ -107,24 +154,43 @@ def wind_transitions(i, j, a, moves, p_center, rows, cols, center_col):
     Off-center: Wind pushes FURTHER away from center toward the edges
     """
     
+    rng = np.random.default_rng()
+
     # Step 1: Deterministic move
     di, dj = moves[a]
     ni, nj = i + di, j + dj
 
     transitions = {}
+
+    first_fifth = (cols - 1) // 5
     
     if nj == center_col:
         # At center: wind pushes you to the SIDES (away from center)
         # "with probability p, pushes to (i,4) or (i,2) (50/50)"
-        transitions[(ni, 2)] = p_center / 2  # Pushed left
-        transitions[(ni, 4)] = p_center / 2  # Pushed right
+        transitions[(ni, 
+                     rng.integers(low=first_fifth + 1,
+                                  high=(2 * first_fifth) + 1)
+                    )] = p_center / 2  # Pushed left
+        transitions[(ni, 
+                     rng.integers(low=(3 * first_fifth) + 1,
+                                  high=(4 * first_fifth) + 1)
+                     )] = p_center / 2  # Pushed right
         
         # "otherwise, with probability (1-p)p², pushes to (i,5) or (i,1)"
-        transitions[(ni, 1)] = (1 - p_center) * (p_center**2) / 2
-        transitions[(ni, 5)] = (1 - p_center) * (p_center**2) / 2
+        transitions[(ni, 
+                     rng.integers(low=1, 
+                                  high=first_fifth + 1)
+                     )] = (1 - p_center) * (p_center**2) / 2
+        transitions[(ni, 
+                     rng.integers(low=(4 * first_fifth) + 1, 
+                                  high=(5 * first_fifth) + 1)
+                     )] = (1 - p_center) * (p_center**2) / 2
         
         # "otherwise, with probability (1-p)(1-p²), stays at (i,3)"
-        transitions[(ni, 3)] = (1 - p_center) * (1 - p_center**2)
+        transitions[(ni, 
+                     rng.integers(low=(2 * first_fifth) + 1, 
+                                  high=(3 * first_fifth) + 1)
+                     )] = (1 - p_center) * (1 - p_center**2)
         
     else:
         # Off-center: wind probability scales with distance, pushes AWAY from center

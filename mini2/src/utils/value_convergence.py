@@ -32,39 +32,47 @@ def value_dict_to_grid(V, grid_shape, terminal_states):
             # Assign the value to the grid
             grid[r, c] = float(v)
 
+    # grid = np.round(grid, decimals=2)
+    # print(grid)
+
     return grid
 
 
 def save_value_heatmap(V, iteration, env, out_dir="heatmaps"):
-    """
-    Saves the value function V as a heatmap image to file.
-
-    Args:
-        V (dict): The value function
-        iteration (int): The iteration number
-        env (FiniteMDP): The finite MDP environment
-        out_dir (str, optional): The output directory for the heatmap image. 
-        Defaults to "heatmaps".
-
-    Returns:
-        None
-    """
     grid = value_dict_to_grid(
         V,
         env.curr_grid.shape,
         env.terminal_states
     )
 
-    vmin, vmax = env.terminal_state_values
+    # 1. Get the raw terminal values from the environment
+    vmin_env, vmax_env = env.terminal_state_values
+    
+    # 2. Safety check: Filter out inf/nan from the grid to find actual data range
+    # This prevents casting 'inf' to 'int'
+    mask = np.isfinite(grid)
+    if np.any(mask):
+        actual_min = np.min(grid[mask])
+        actual_max = np.max(grid[mask])
+        # Use the more restrictive of environment limits vs actual data
+        # (or just use actual_min/max if you want the scale to auto-adjust)
+        plot_vmin = max(vmin_env, actual_min) if np.isfinite(vmin_env) else actual_min
+        plot_vmax = min(vmax_env, actual_max) if np.isfinite(vmax_env) else actual_max
+    else:
+        # Fallback if the whole grid is NaN or Inf
+        plot_vmin, plot_vmax = -10, 10
 
     plt.figure(figsize=(6, 12))
+    
+    # Removed the int() casts that cause the OverflowError
     im = plt.imshow(
         grid,
         cmap="jet",
         origin="upper",
-        vmin=int(vmin * 1.2),
-        vmax=int(vmax * 1.2)
+        vmin=plot_vmin * 1.2, 
+        vmax=plot_vmax * 1.2
     )
+    
     plt.colorbar(im)
     plt.title(f"Value Function – Iteration {iteration}")
     plt.xlabel("Column")
@@ -75,85 +83,47 @@ def save_value_heatmap(V, iteration, env, out_dir="heatmaps"):
 
 
 def policy_evaluation(env, V, policy, tol=1e-4):
-    """
-    Evaluates the value function for a given policy.
-
-    Args:
-        env (FiniteMDP): The finite MDP environment
-        V (dict): The value function
-        policy (dict): The policy
-        tol (float, optional): The tolerance for the value function. 
-        Defaults to 1e-4.
-
-    Returns:
-        dict: The updated value function
-    """
-    all_states = env.S.union(env.terminal_states)
     gamma = env.gamma
-
     while True:
         delta = 0
-        V_new = V.copy()
-
-        for s in all_states:
-            if s in env.terminal_states:
-                V_new[s] = 0.0
-                continue
-
+        # UPDATE IN-PLACE: Remove V_new = V.copy()
+        for s in env.S:
+            old_v = V[s]
             a = policy[s]
-            v_temp = 0.0
+            
+            # Use the summation of the Bellman Equation
+            V[s] = sum(prob * (reward + gamma * V[s_next]) 
+                       for s_next, (prob, reward) in env.step(s, a).items())
+            
+            delta = max(delta, abs(old_v - V[s]))
 
-            for s_next, (prob, reward) in env.step(s, a).items():
-                v_temp += prob * (reward + gamma * V[s_next])
-
-            V_new[s] = v_temp
-            delta = max(delta, abs(V_new[s] - V[s]))
-
-        V = V_new
         if delta < tol:
             break
-
     return V
 
-
 def policy_improvement(env, V, policy):
-    """
-    Runs the policy improvement algorithm to find the optimal policy given a 
-    value function.
-
-    Args:
-        env (FiniteMDP): a Finite Markov Reward Process
-        V (dict): the value function
-        policy (dict): the current policy
-
-    Returns:
-        tuple: (new_policy, policy_stable) where
-            new_policy (dict): the improved policy
-            policy_stable (bool): whether the policy has been improved
-    """
     gamma = env.gamma
     policy_stable = True
     new_policy = policy.copy()
 
     for s in env.S:
-        if s in env.terminal_states:
-            # Skip terminal states
-            continue
-
         old_action = policy[s]
+        
+        # Calculate Q(s, a) for all possible actions
+        action_values = {}
+        for a in env.A:
+            action_values[a] = sum(prob * (reward + gamma * V[s_next]) 
+                                   for s_next, (prob, reward) in env.step(s, a).items())
+        
+        # Select the best action
+        best_action = max(action_values, key=action_values.get)
+        new_policy[s] = best_action
 
-        # Find the action that maximizes the expected reward
-        new_policy[s] = max(
-            env.A,
-            key=lambda a: sum(
-                prob * (reward + gamma * V[s_next])
-                for s_next, (prob, reward) in env.step(s, a).items()
-            )
-        )
-
-        if new_policy[s] != old_action:
-            # If the policy has been improved, set policy_stable to False
-            policy_stable = False
+        # In policy_improvement
+        if old_action != best_action:
+            # Use a small epsilon to ensure the improvement is significant
+            if action_values[best_action] > action_values[old_action] + 1e-9:
+                policy_stable = False
 
     return new_policy, policy_stable
 

@@ -1,6 +1,5 @@
 import numpy as np
 
-
 def import_random_transitions(transitions_type):
     """
     Imports a random transition model based on the given type.
@@ -17,6 +16,8 @@ def import_random_transitions(transitions_type):
     """
     if transitions_type == "m2p1":
         from src.p1.helpers import wind_transitions as random_transitions
+    elif transitions_type == "m2p2":
+        from src.p2.helpers import movement_drift_transitions as random_transitions
     else:
         raise ValueError(f"Unknown transitions type: {transitions_type}")
 
@@ -56,6 +57,7 @@ def gridworld(mask, terminal_map, action_map, step_penalty=-1,
 
     rows, cols = mask.shape
     center_col = cols // 2
+    center_row = rows // 2
 
 
     # Terminal bookkeeping
@@ -83,6 +85,11 @@ def gridworld(mask, terminal_map, action_map, step_penalty=-1,
     for s in S:
         P[s] = {}
 
+        if transitions_type == "m2p1":
+            center = center_col
+        elif transitions_type == "m2p2":
+            center = center_row
+
         for a in A:
             raw_transitions = random_transitions(
                 *s,
@@ -91,7 +98,7 @@ def gridworld(mask, terminal_map, action_map, step_penalty=-1,
                 random_probability,
                 rows,
                 cols,
-                center_col
+                center
             )
 
             P[s][a] = {}
