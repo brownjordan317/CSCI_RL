@@ -1,0 +1,5 @@
+- Use a terminal state
+    - Whenever a goal or a game ending event occurs, the agent now gets stuck in that state
+    - Has 0 rewards, thus the value is also 0
+    - there exists trajectories that go around in loops and do not reach their goals
+    
