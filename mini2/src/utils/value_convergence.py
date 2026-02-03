@@ -27,18 +27,28 @@ def value_dict_to_grid(V, grid_shape, terminal_states):
             continue
         # If the state is a tuple, it represents a grid position
         if isinstance(s, tuple):
-            # Unpack the tuple
-            r, c = s
-            # Assign the value to the grid
-            grid[r, c] = float(v)
-
-    # grid = np.round(grid, decimals=2)
-    # print(grid)
+            # Check if it's a simple (r, c) tuple (P1, P2)
+            if len(s) == 2 and isinstance(s[0], int) and isinstance(s[1], int):
+                r, c = s
+                # Make sure it fits in the grid
+                if 0 <= r < grid_shape[0] and 0 <= c < grid_shape[1]:
+                    grid[r, c] = float(v)
+            # For P3, states are ((position), (circuit_config)) - skip visualization
+            # We can't easily visualize a 6561-dimensional state space on a 2D grid
 
     return grid
 
 
 def save_value_heatmap(V, iteration, env, out_dir="heatmaps"):
+    """
+    Save heatmap visualization of value function.
+    Works for P1/P2 (simple grid states) but skips P3 (complex states).
+    """
+    # Check if environment has curr_grid attribute (P1, P2)
+    if not hasattr(env, 'curr_grid') or env.curr_grid is None:
+        # Skip heatmap for P3 - state space is too complex to visualize
+        return
+    
     grid = value_dict_to_grid(
         V,
         env.curr_grid.shape,
@@ -83,25 +93,52 @@ def save_value_heatmap(V, iteration, env, out_dir="heatmaps"):
 
 
 def policy_evaluation(env, V, policy, tol=1e-4):
+    """
+    Policy evaluation with support for both P1/P2 and P3.
+    
+    P1/P2: Uses env.step(s, a) which returns {s_next: (prob, reward)}
+    P3: env.step(s, a) also returns {s_next: (prob, reward)} via GridEnvironment wrapper
+    
+    Args:
+        env: Environment object
+        V: Value function dictionary
+        policy: Policy dictionary
+        tol: Convergence tolerance
+    
+    Returns:
+        V: Updated value function
+    """
+
     gamma = env.gamma
     while True:
         delta = 0
-        # UPDATE IN-PLACE: Remove V_new = V.copy()
+        V_new = V.copy() # Use a copy to ensure stable updates
         for s in env.S:
-            old_v = V[s]
             a = policy[s]
+            if a is None: continue
             
-            # Use the summation of the Bellman Equation
-            V[s] = sum(prob * (reward + gamma * V[s_next]) 
-                       for s_next, (prob, reward) in env.step(s, a).items())
-            
-            delta = max(delta, abs(old_v - V[s]))
-
+            V_new[s] = sum(prob * (reward + gamma * V.get(s_next, 0.0)) 
+                        for s_next, (prob, reward) in env.step(s, a).items())
+            delta = max(delta, abs(V[s] - V_new[s]))
+        V = V_new
         if delta < tol:
             break
     return V
 
+
 def policy_improvement(env, V, policy):
+    """
+    Policy improvement with support for both P1/P2 and P3.
+    
+    Args:
+        env: Environment object
+        V: Value function
+        policy: Current policy
+    
+    Returns:
+        new_policy: Improved policy
+        policy_stable: Whether policy converged
+    """
     gamma = env.gamma
     policy_stable = True
     new_policy = policy.copy()
@@ -109,19 +146,17 @@ def policy_improvement(env, V, policy):
     for s in env.S:
         old_action = policy[s]
         
-        # Calculate Q(s, a) for all possible actions
         action_values = {}
         for a in env.A:
-            action_values[a] = sum(prob * (reward + gamma * V[s_next]) 
+            # Use .get() here as well to handle unseen circuit states
+            action_values[a] = sum(prob * (reward + gamma * V.get(s_next, 0.0)) 
                                    for s_next, (prob, reward) in env.step(s, a).items())
         
-        # Select the best action
         best_action = max(action_values, key=action_values.get)
         new_policy[s] = best_action
 
-        # In policy_improvement
         if old_action != best_action:
-            # Use a small epsilon to ensure the improvement is significant
+            # Check for significant improvement to avoid infinite loops from float noise
             if action_values[best_action] > action_values[old_action] + 1e-9:
                 policy_stable = False
 
@@ -132,9 +167,19 @@ def policy_iteration(env):
     """
     Runs the policy iteration algorithm to find the optimal policy and 
     value function.
+    
+    Works for:
+    - P1: Windy Chasm (GridEnvironment with curr_grid)
+    - P2: Robot Motion Control (GridEnvironment with curr_grid)
+    - P3: Circuit Design (GridEnvironment without curr_grid, complex states)
 
     Args:
-        env (FiniteMDP): a Finite Markov Reward Process
+        env: Environment object with attributes:
+            - S: set of non-terminal states
+            - terminal_states: set of terminal states
+            - A: set of actions
+            - gamma: discount factor
+            - step(s, a): method that returns {s_next: (prob, reward)}
 
     Returns:
         tuple: (V, policy) where
