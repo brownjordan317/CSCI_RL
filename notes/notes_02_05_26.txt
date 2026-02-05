@@ -1,0 +1,9 @@
+State A -> R -> State J (-1) -> R -> State P (-1) -> L -> 7
+
+
+rewards
+-1
+-1
+7
+
+State A -> L -> 2

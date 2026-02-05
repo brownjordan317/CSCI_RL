@@ -1,180 +1,159 @@
 import numpy as np
 import random
+import matplotlib.pyplot as plt
+import numpy as np
+from skimage.transform import resize  # nearest-neighbor resize
+
+
+# ---------------- PIPE DEFINITIONS ----------------
 
 class PipeOptions:
     def __init__(self):
-        # Directions: N, E, S, W
-        self.pipes = {
-            # T pipes
-            "T_0":   {"conn": {"N", "E", "W"}, "weight": 1},
-            "T_90":  {"conn": {"N", "E", "S"}, "weight": 1},
-            "T_180": {"conn": {"E", "S", "W"}, "weight": 1},
-            "T_270": {"conn": {"N", "S", "W"}, "weight": 1},
+        self.conn_to_pipe = {
+            frozenset({"N"}): "END_N",
+            frozenset({"S"}): "END_S",
+            frozenset({"E"}): "END_E",
+            frozenset({"W"}): "END_W",
 
-            # Straight pipes
-            "I_0":   {"conn": {"N", "S"}, "weight": 4},
-            "I_90":  {"conn": {"E", "W"}, "weight": 4},
+            frozenset({"N", "S"}): "I_0",
+            frozenset({"E", "W"}): "I_90",
 
-            # Corner pipes
-            "L_0":   {"conn": {"N", "E"}, "weight": 3},
-            "L_90":  {"conn": {"E", "S"}, "weight": 3},
-            "L_180": {"conn": {"S", "W"}, "weight": 3},
-            "L_270": {"conn": {"N", "W"}, "weight": 3},
+            frozenset({"N", "E"}): "L_0",
+            frozenset({"E", "S"}): "L_90",
+            frozenset({"S", "W"}): "L_180",
+            frozenset({"N", "W"}): "L_270",
 
-            # 4-way cross
-            "X_0":   {"conn": {"N", "E", "S", "W"}, "weight": 0.5},
+            frozenset({"N", "E", "W"}): "T_0",
+            frozenset({"N", "E", "S"}): "T_90",
+            frozenset({"E", "S", "W"}): "T_180",
+            frozenset({"N", "S", "W"}): "T_270",
+
+            frozenset({"N", "E", "S", "W"}): "X_0",
         }
 
-        self.opposite = {
-            "N": "S", "S": "N",
-            "E": "W", "W": "E"
-        }
+# ---------------- GRID GENERATION ----------------
 
 class PipeGrid:
-    def __init__(self, rows, cols, pipe_options):
-        self.rows = rows
-        self.cols = cols
-        self.opts = pipe_options
-        self.grid = np.empty((rows, cols), dtype=object)
-        self.generate()
+    def __init__(self, rows, cols, loop_prob=0.25):
+        self.rows, self.cols, self.loop_prob = rows, cols, loop_prob
+        self.connections = [[set() for _ in range(cols)] for _ in range(rows)]
+        self._build_spanning_tree()
+        self._add_loops()
 
-    def generate(self):
+    def _build_spanning_tree(self):
+        visited = [[False]*self.cols for _ in range(self.rows)]
+        def dfs(r, c):
+            visited[r][c] = True
+            dirs = [("N",-1,0), ("S",1,0), ("E",0,1), ("W",0,-1)]
+            random.shuffle(dirs)
+            for d, dr, dc in dirs:
+                nr, nc = r+dr, c+dc
+                if 0<=nr<self.rows and 0<=nc<self.cols and not visited[nr][nc]:
+                    self.connections[r][c].add(d)
+                    self.connections[nr][nc].add(opposite(d))
+                    dfs(nr, nc)
+        dfs(0,0)
+
+    def _add_loops(self):
         for r in range(self.rows):
             for c in range(self.cols):
-                self.grid[r, c] = self.choose_valid_pipe(r, c)
+                for d, dr, dc in [("N",-1,0),("S",1,0),("E",0,1),("W",0,-1)]:
+                    nr, nc = r+dr, c+dc
+                    if 0<=nr<self.rows and 0<=nc<self.cols and d not in self.connections[r][c] and random.random() < self.loop_prob:
+                        self.connections[r][c].add(d)
+                        self.connections[nr][nc].add(opposite(d))
 
-    def choose_valid_pipe(self, r, c):
-        required = set()
+    def to_pipe_ids(self, pipe_opts):
+        return np.array([[pipe_opts.conn_to_pipe[frozenset(self.connections[r][c])] for c in range(self.cols)] for r in range(self.rows)], dtype=object)
 
-        # Check north neighbor
-        if r > 0:
-            north = self.grid[r - 1, c]
-            if "S" in self.opts.pipes[north]["conn"]:
-                required.add("N")
-
-        # Check west neighbor
-        if c > 0:
-            west = self.grid[r, c - 1]
-            if "E" in self.opts.pipes[west]["conn"]:
-                required.add("W")
-
-        candidates = []
-        weights = []
-
-        for pid, data in self.opts.pipes.items():
-            if required.issubset(data["conn"]):
-                candidates.append(pid)
-                weights.append(data["weight"])
-
-        return random.choices(candidates, weights=weights, k=1)[0]
+def opposite(d): return {"N":"S","S":"N","E":"W","W":"E"}[d]
 
 class PipeVisualizerBW:
-    """
-    Convert the pipe grid into a black-and-white NumPy array.
-    0 = black background
-    1 = white path
-    """
-    def __init__(self, cell_size=5):
-        self.cell_size = cell_size
-        self.patterns = self.create_patterns(cell_size)
+    def __init__(self, lanes=1, base=3):
+        self.lanes, self.base = lanes, base
+        self.s = lanes*base
+        self.patterns = self._make_patterns()
 
-    def create_patterns(self, s):
-        # s = cell size
-        p = {}
-        mid = s // 2
+    def _make_patterns(self):
+        s, t, mid = self.s, self.lanes, self.s//2
+        fill = lambda m,r0,r1,c0,c1: m.__setitem__(slice(r0,r1), np.append(m[r0:r1,:], np.zeros((r1-r0,c1-c0),dtype=int), axis=1)) or m
+        empty = lambda: np.zeros((s,s), int)
+        canvas = {}
 
-        # Initialize empty black square
-        def empty():
-            return np.zeros((s, s), dtype=int)
+        def draw_cell(up, right, down, left):
+            m = empty()
+            if up: m[0:mid+1, mid-t//2:mid+(t+1)//2]=1
+            if down: m[mid:s, mid-t//2:mid+(t+1)//2]=1
+            if left: m[mid-t//2:mid+(t+1)//2, 0:mid+1]=1
+            if right: m[mid-t//2:mid+(t+1)//2, mid:s]=1
+            return m
 
-        # Straight vertical
-        vert = empty()
-        vert[:, mid] = 1
-        p["I_0"] = vert
-
-        # Straight horizontal
-        hor = empty()
-        hor[mid, :] = 1
-        p["I_90"] = hor
-
-        # Corners
-        L0 = empty()
-        L0[:mid+1, mid] = 1   # vertical up
-        L0[mid, mid:] = 1     # horizontal right
-        p["L_0"] = L0
-
-        L90 = empty()
-        L90[mid:, mid] = 1    # vertical down
-        L90[mid, mid:] = 1    # horizontal right
-        p["L_90"] = L90
-
-        L180 = empty()
-        L180[mid:, mid] = 1   # vertical down
-        L180[mid, :mid+1] = 1 # horizontal left
-        p["L_180"] = L180
-
-        L270 = empty()
-        L270[:mid+1, mid] = 1 # vertical up
-        L270[mid, :mid+1] = 1 # horizontal left
-        p["L_270"] = L270
-
-        # T junctions
-        T0 = empty()
-        T0[mid, :] = 1        # horizontal
-        T0[:mid+1, mid] = 1   # vertical up
-        p["T_0"] = T0
-
-        T90 = empty()
-        T90[mid, mid:] = 1    # horizontal right
-        T90[:, mid] = 1       # vertical
-        p["T_90"] = T90
-
-        T180 = empty()
-        T180[mid, :] = 1      # horizontal
-        T180[mid:, mid] = 1   # vertical down
-        p["T_180"] = T180
-
-        T270 = empty()
-        T270[mid, :mid+1] = 1 # horizontal left
-        T270[:, mid] = 1      # vertical
-        p["T_270"] = T270
-
-        # Cross
-        X0 = empty()
-        X0[mid, :] = 1
-        X0[:, mid] = 1
-        p["X_0"] = X0
-
-        return p
-
-    def render(self, grid):
-        rows, cols = grid.shape
-        s = self.cell_size
-        canvas = np.zeros((rows * s, cols * s), dtype=int)
-
-        for r in range(rows):
-            for c in range(cols):
-                canvas[r*s:(r+1)*s, c*s:(c+1)*s] = self.patterns[grid[r, c]]
+        for name, u,r,d,l in [
+            ("END_N",1,0,0,0), ("END_E",0,1,0,0), ("END_S",0,0,1,0), ("END_W",0,0,0,1),
+            ("I_0",1,0,1,0), ("I_90",0,1,0,1),
+            ("L_0",1,1,0,0), ("L_90",0,1,1,0), ("L_180",0,0,1,1), ("L_270",1,0,0,1),
+            ("T_0",1,1,0,1), ("T_90",1,1,1,0), ("T_180",0,1,1,1), ("T_270",1,0,1,1),
+            ("X_0",1,1,1,1)
+        ]: canvas[name] = draw_cell(u,r,d,l)
         return canvas
 
+    def render(self, grid):
+        rows, cols, s = grid.shape[0], grid.shape[1], self.s
+        canvas = np.zeros((rows*s, cols*s), int)
+        for r in range(rows):
+            for c in range(cols):
+                canvas[r*s:(r+1)*s, c*s:(c+1)*s] = self.patterns[grid[r,c]]
+        return canvas
+
+def vis_grid(grid_cw, lanes):
+    fig, ax = plt.subplots(figsize=(8 * lanes, 8 * lanes))
+    ax.imshow(grid_cw, cmap="gray", interpolation="nearest")
+
+    # Get canvas dimensions
+    h, w = grid_cw.shape
+
+    # Pixel-level minor ticks (gridlines between every pixel)
+    ax.set_xticks(np.arange(-0.5, w, 1), minor=True)
+    ax.set_yticks(np.arange(-0.5, h, 1), minor=True)
+
+    # Draw gray pixel gridlines
+    ax.grid(which="minor", color="gray", linestyle="-", linewidth=0.2)
+
+    # Turn off major ticks completely
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+    ax.set_aspect("equal")
+    plt.tight_layout()
+
+    plt.savefig("fig.png")
+
+
+# ---------------- MAIN ----------------
+
 def main():
-    pipes = PipeOptions()
-    grid = PipeGrid(10, 10, pipes)
+    grid_size = [40, 40]
+    grid = PipeGrid(
+        grid_size[0],
+        grid_size[1], 
+        loop_prob=0.05
+    ).to_pipe_ids(PipeOptions())
 
-    viz = PipeVisualizerBW(cell_size=5)
-    bw_array = viz.render(grid.grid)
-    import matplotlib.pyplot as plt
+    bw = PipeVisualizerBW().render(grid)
 
-    # Assume bw_array is your black-and-white NumPy array
-    plt.imshow(bw_array, cmap='gray', interpolation='nearest')
-    plt.axis('off')  # Hide axes
-    plt.savefig("pipe_grid.png", bbox_inches='tight', pad_inches=0)
-    plt.show()       # Optional: display the image
+    lanes = 2
+    bw = resize(
+        bw, 
+        (
+            bw.shape[0]*lanes, 
+            bw.shape[1]*lanes
+        ), 
+        order=0, 
+        preserve_range=True, 
+        anti_aliasing=False
+    ).astype(int)
 
-
-    # Print as ASCII for visualization
-    for row in bw_array:
-        print("".join("█" if x else " " for x in row))
+    vis_grid(bw, lanes)
 
 if __name__ == "__main__":
     main()
