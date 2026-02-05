@@ -3,6 +3,9 @@ import random
 import matplotlib.pyplot as plt
 import numpy as np
 from skimage.transform import resize  # nearest-neighbor resize
+import sys
+sys.setrecursionlimit(10000)
+
 
 
 # ---------------- PIPE DEFINITIONS ----------------
@@ -132,7 +135,7 @@ def vis_grid(grid_cw, lanes):
 # ---------------- MAIN ----------------
 
 def main():
-    grid_size = [40, 40]
+    grid_size = [100, 100]
     grid = PipeGrid(
         grid_size[0],
         grid_size[1], 
