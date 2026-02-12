@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from skimage.transform import resize  # nearest-neighbor resize
 import sys
-sys.setrecursionlimit(10000)
+sys.setrecursionlimit(100000)
 
 
 
@@ -135,11 +135,11 @@ def vis_grid(grid_cw, lanes):
 # ---------------- MAIN ----------------
 
 def main():
-    grid_size = [100, 100]
+    grid_size = [200, 200]
     grid = PipeGrid(
         grid_size[0],
         grid_size[1], 
-        loop_prob=0.05
+        loop_prob=0.15
     ).to_pipe_ids(PipeOptions())
 
     bw = PipeVisualizerBW().render(grid)

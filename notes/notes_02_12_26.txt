@@ -1,0 +1,29 @@
+Deep reinforcement learning
+there are two ways to approach problems, either with search or optimization
+search is the forward view
+    - it is value maxing
+    - examples include Monte carlo, TD(n) Q learning, and tree based
+    - has great solution gaurantees
+    - permformance improves with variance reductions
+optimization is the backwards view
+    - Explanation for maximizing credit-assignment
+    - examples TD(lambda), representation learning, and deep learning
+    - realted to sochastic gradient descent, regression, feature learning, PCA analysis, Fourier methods and NN optimization
+    - medium solution gaurantees
+    - great convergnece rates
+
+The curse of dimensionality: Usable value and policy updates do not scale with states and actions
+
+For DL
+    - Given a policy pim we are trying to determine:
+        - The true value function
+        - the true Q value
+        - or a policy updates
+    - so we need a really good function approximator
+    - the trick is to "categorize states/actions" by a fixed number of relevence
+
+We consider a representation "really good" if the features are "independent, sufficient and minimal"
+
+features are functions of measurable data, usually they are either compressions or critical notions
+You can describe a state by its features
+The notions of deep learning comes form the fact that you can iterate this process by making feature space your new scaling space
