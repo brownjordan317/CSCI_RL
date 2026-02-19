@@ -1,0 +1,12 @@
+saliency maps: Human interpretable visualizations of the inner workings of deep neural networks. they are a special form of sensitivity
+
+idea - if a network needs to determine an image is a bird, there is a critical number of pixels that can be removed from the bird before the image is no longer recognizable
+
+policy gradient theorem
+    - like bootstrapping the reward as a means to optimizing a policy
+    - better than q-learning, dqn or other methods because they do not scale to uncountable situations
+    - Actor critic is a popular examples, PPO, SAC, GRPO are all other examples
+    - 
+
+Sampling is a random variable that has a law corresponding to the underlying probability
+

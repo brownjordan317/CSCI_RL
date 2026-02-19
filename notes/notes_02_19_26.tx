@@ -1,0 +1,25 @@
+The gradient of the log is (gradient of the policy / the policy)
+    gradient of the policy corresponds to the amount of exploitation
+    dividing by the policy is like dividing by the expectation
+
+Advantages: The main idea is that when you adjust your returns, in terms of the actions you pick, it wont affect your actual action taken (Deterministic towards action with highest return)
+    - Defined as (Q values) - normal values; the Q values can sometimes be replaced by the returns, then becoms similar to TD and monte carlo methods
+    - A TD error is a unbiased sample of the advantage for one step
+
+
+Value Based Network: methods focus on learning the value of states and actions to guide decision-making
+    - takes as input current state and current policy
+        - One way to input the policy would be by conditioning the NN
+        - Another way would be to just use a bootstrapped version of the policy (not quite as good but can be better with excessively large inputs)
+    - outputs a prediction of the values of that state
+
+Think of all NN as function approximators
+
+Backwards view is when you are dealing with TD targets, decay eventually becomes 0; TD targets can be thought of as a discrepency in rewards
+Forwards view is when you are dealing with TD rewards, constant decay
+
+Actor Critic:
+    - In short, means we will determine values based on a NN
+    - Over a dozen modern RL models are considered actor critic
+    - important that the critic is more well learned that the actor (This allows for the actor to get good learning)
+    - 
