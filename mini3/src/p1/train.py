@@ -1,8 +1,10 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from env import ReactorEnv
-from sarsa import SarsaLambdaAgent
-from q_learning import QLearningAgent
+import plotly.graph_objects as go
+import plotly.express as px
+
+from src.p1.env import ReactorEnv
+from src.p1.sarsa import SarsaLambdaAgent
+from src.p1.q_learning import QLearningAgent
 
 
 # =========================================================
@@ -12,7 +14,7 @@ from q_learning import QLearningAgent
 def moving_average(x, window=20):
     if len(x) < window:
         return np.array(x)
-    return np.convolve(x, np.ones(window)/window, mode="valid")
+    return np.convolve(x, np.ones(window) / window, mode="valid")
 
 
 def convergence_episode(returns, window=20):
@@ -44,32 +46,60 @@ def critical_region_analysis(Q, env):
     return np.mean(risky_vals), np.mean(safe_vals)
 
 
-def plot_learning_curves(results, title):
-    plt.figure(figsize=(10, 6))
-    for label, data in results.items():
-        plt.plot(moving_average(data["returns"], 20), label=label)
+# =========================================================
+# Plotting (Plotly Version)
+# =========================================================
 
-    plt.xlabel("Episode")
-    plt.ylabel("Return (20-ep MA)")
-    plt.title(title)
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(title.replace(" ", "_") + ".png", dpi=300)
-    plt.show()
+def plot_learning_curves(results, title):
+    fig = go.Figure()
+
+    for label, data in results.items():
+        ma = moving_average(data["returns"], 20)
+        fig.add_trace(
+            go.Scatter(
+                y=ma,
+                mode="lines",
+                name=label
+            )
+        )
+
+    fig.update_layout(
+        title=title,
+        xaxis_title="Episode",
+        yaxis_title="Return (20-ep MA)",
+        template="plotly_white",
+        legend_title="Algorithm",
+        width=900,
+        height=500
+    )
+
+    fig.show()
 
 
 def plot_heatmap(Q, env, title):
-    plt.figure(figsize=(8, 6))
-    plt.imshow(Q.T, aspect="auto", origin="lower")
-    plt.colorbar(label="Q-value")
-    plt.yticks(np.arange(len(env.actions)), env.actions)
-    plt.xlabel("State (z bin)")
-    plt.ylabel("Action")
-    plt.title(title)
-    plt.tight_layout()
-    plt.savefig(title.replace(" ", "_") + ".png", dpi=300)
-    plt.show()
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=Q.T,
+            colorscale="Jet",
+            colorbar=dict(title="Q-value")
+        )
+    )
+
+    fig.update_layout(
+        title=title,
+        xaxis_title="State (z bin)",
+        yaxis_title="Action",
+        yaxis=dict(
+            tickmode="array",
+            tickvals=list(range(len(env.actions))),
+            ticktext=env.actions
+        ),
+        template="plotly_white",
+        width=800,
+        height=500
+    )
+
+    fig.show()
 
 
 # =========================================================
@@ -120,7 +150,7 @@ def train(env, agent, episodes=500):
 # =========================================================
 
 def run_experiments():
-    episodes = 500
+    episodes = 2_000
     noise_levels = {
         "Low Noise (σ=0.0)": 0.0,
         "High Noise (σ=0.8)": 0.8
@@ -171,9 +201,9 @@ def run_experiments():
         print(f"Avg Q(high_z, insert)   = {safe_q:.3f}")
 
         if risky_sarsa < safe_sarsa:
-            print("→ SARSA penalizes risky actions near critical region.")
+            print("== SARSA penalizes risky actions near critical region.")
         if risky_q < safe_q:
-            print("→ Q-learning penalizes risky actions near critical region.")
+            print("== Q-learning penalizes risky actions near critical region.")
 
         # -------------------------------------------------
         # (c) Direct Comparison
@@ -189,25 +219,25 @@ def run_experiments():
         print(f"Q-learning convergence episode: {conv_q}")
 
         if conv_q < conv_sarsa:
-            print("→ Q-learning converges faster.")
+            print("== Q-learning converges faster.")
         else:
-            print("→ SARSA converges faster.")
+            print("== SARSA converges faster.")
 
         print(f"\nSARSA final avg return: {final_sarsa:.2f}")
         print(f"Q-learning final avg return: {final_q:.2f}")
 
         if final_q > final_sarsa:
-            print("→ Q-learning achieves higher return.")
+            print("== Q-learning achieves higher return.")
         else:
-            print("→ SARSA achieves higher return.")
+            print("== SARSA achieves higher return.")
 
         print(f"\nSARSA meltdowns: {res_sarsa['meltdowns']}")
         print(f"Q-learning meltdowns: {res_q['meltdowns']}")
 
         if res_q["meltdowns"] > res_sarsa["meltdowns"]:
-            print("→ Q-learning is more prone to meltdown during exploration.")
+            print("== Q-learning is more prone to meltdown during exploration.")
         else:
-            print("→ SARSA is more prone to meltdown during exploration.")
+            print("== SARSA is more prone to meltdown during exploration.")
 
 
 if __name__ == "__main__":
