@@ -1,0 +1,3 @@
+theta often represents weights
+
+GAE -> Generalized Advantage Estimate (means TD(lambda) is being used)

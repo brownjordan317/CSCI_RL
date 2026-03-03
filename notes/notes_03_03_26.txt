@@ -1,0 +1,44 @@
+TR in trpo stands for trust regions
+
+legrange multipliers: gradient ascent/descent with a function that is contrained to a sub part (optimization given contraints)
+
+on policy: learns and updates one policy
+off policy: learns and updates for multiple policies at a time
+
+the implementation for off-policy involves experience replay (a memory buffer)
+
+Deep deterministic policy gradient methods (DDPG): 
+    Idea is; lets use q learning again but force only using policies that are deterministic
+
+Deterministic vs stochastic polices:
+    NNs allow determistic policies to become stochastic policies. Every action is equal to the policy of a state.
+
+it tends to be more stable to have apolicy that updates slowly.
+
+TD3 - Twin Delayed Policy Gradient methods
+    An improve DDPG; the twin portion means it used 2 Q networks. This prevents overly high Q values from taking over the network
+
+
+Games and what algorithms to use
+    Monopoly: 
+
+    Mario: PPO
+
+    Treasure Spelunking: 
+
+    Chess: TD(lambda)
+
+    Blackjack: Q-learning or Monte Carlo
+
+    Robot Backflip: SAC or PPO
+
+    LLM Allignment:
+
+    Ag Autonomous Spraying:
+
+    space domain awareness:
+
+    mars trajectories:
+
+    baby activity prediction:
+
