@@ -1,0 +1,37 @@
+Partial Observability
+Everything weve done so far is basedof off states
+    - this is not always realistic
+        - works well for board games and simulations in completely nown environments
+        - does not work for things with visual data, card games with hidden hand, basically anything with partial Observability
+        - multi agents is a good example as the agents can only know what each other are doing through communication which can be though of as observation and not a state
+
+State vs Obs Example:
+    A robot thats needs to move through and environment
+
+    State:
+        - exact position
+        - full room map
+        - positions of obstacles
+    Obs:
+        - RGB image
+        - IMU reading
+        - LiDAR sweep
+
+- The same state can produce many different observations
+- The same observation is consistent with many different states
+- multiple measurint instruments can be aggregated into one observation
+
+Beleifs:
+    - from the history of the model we can make a prob distro of what state it thinks its in
+    - satisfy the markov property
+
+Bayes Theorem
+    - the probability of an event, based on prior knowledge of conditions that might be related to the event
+        - the probability of something given the probabilities of a bunch of other prequisite knowledge
+            i.e. the prop that a illness test is true positive given the success rates of previous tests, the odds of getting the disease in the first place, etc...
+    - emphasizes the importance of understanding how priors effect things
+
+Fisher information
+    - "Can i learn about these conditional variables?"
+    - Given an observation how much can you learn about the parameters it is based off of
+    
